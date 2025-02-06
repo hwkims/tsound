@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Javascript PyAnimalese Chatbot (Unicode Reactive)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { text-align: center; }
+        p { text-align: center; margin-bottom: 20px; }
+        .chat-container { display: flex; flex-direction: column; align-items: center; }
+        #chat-output { width: 80%; min-height: 100px; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; overflow-y: auto; text-align: left; }
+        .input-area { display: flex; width: 80%; margin-bottom: 20px; }
+        input[type="text"] { flex-grow: 1; padding: 10px; font-size: 16px; }
+        button { padding: 12px 25px; font-size: 18px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Javascript PyAnimalese Chatbot</h1>
+    <p>Type your message and press Enter to get an Animalese sound response.</p>
+
+    <div class="chat-container">
+        <div id="chat-output">
+            <div class="chatbot-message">Welcome! Type something to start chatting in Animalese.</div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Type your message here" onkeydown="handleEnter(event)">
+            <button onclick="sendInput()">Send</button>
+        </div>
+    </div>
+
+
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const chatOutputDiv = document.getElementById('chat-output');
+        const userInputField = document.getElementById('userInput');
+        let animaleseSources = [];
+
+        const durationPerChar = 0.1;
+        const volumeScaleFactor = 0.00003;
+        const basePitchFactor = 2.0; // Default pitch factor
+        const pitchRangeFactor = 0.5; // Factor to scale pitch variation range
+
+
+        function appendMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add(isUser ? 'user-message' : 'chatbot-message');
+            messageDiv.textContent = message;
+            chatOutputDiv.appendChild(messageDiv);
+            chatOutputDiv.scrollTop = chatOutputDiv.scrollHeight; // Scroll to bottom
+        }
+
+
+        function handleEnter(event) {
+            if (event.key === 'Enter') {
+                sendInput();
+            }
+        }
+
+
+        async function sendInput() {
+            const inputText = userInputField.value.trim();
+            if (!inputText) return;
+
+            appendMessage("You: " + inputText, true); // Display user message in chat
+
+            messageDiv.textContent = "Generating Animalese response..."; // (No messageDiv anymore - remove this line)
+            animaleseSources.forEach(source => source.stop());
+            animaleseSources = [];
+
+            const charList = inputText;
+            const audioBuffers = [];
+            let totalCodePoint = 0;
+
+            for (let char of charList) {
+                const codePoint = char.charCodeAt(0);
+                totalCodePoint += codePoint;
+                const buffer = generateRawDataBuffer(codePoint, durationPerChar);
+                audioBuffers.push(buffer);
+            }
+
+            const averageCodePoint = charList.length > 0 ? totalCodePoint / charList.length : 0;
+            const pitchFactor = basePitchFactor + (averageCodePoint / 65535) * pitchRangeFactor; // Adjust pitch based on average code point
+
+
+            if (audioBuffers.length > 0) {
+                await playAnimaleseAudio(audioBuffers, pitchFactor); // Pass pitchFactor to playAnimaleseAudio
+                appendMessage("Animalese Bot: (Sound)"); // Indicate Animalese response in chat
+            } else {
+                appendMessage("Animalese Bot: (No Sound)");
+            }
+
+            userInputField.value = ''; // Clear input field after sending
+        }
+
+
+
+        function generateRawDataBuffer(codePoint, duration) {
+            const sampleRate = audioContext.sampleRate;
+            const bufferSize = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            const scaledValue = (codePoint / 65535) * 2 - 1;
+            const normalizedValue = scaledValue * volumeScaleFactor;
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = normalizedValue;
+            }
+            return buffer;
+        }
+
+
+
+        async function playAnimaleseAudio(audioBuffers, pitchFactor) { // pitchFactor is now an argument
+            let startTime = audioContext.currentTime;
+            for (const buffer of audioBuffers) { // Use for...of loop for async/await
+                if (buffer) {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = buffer;
+
+                    const pitchShift = 1.0 + (Math.random() - 0.5) * 0.15;
+                    source.playbackRate.value = pitchShift * pitchFactor; // Use dynamic pitchFactor!
+                    source.detune.value = (Math.random() - 0.5) * 100;
+
+                    animaleseSources.push(source);
+                    source.connect(audioContext.destination);
+                    source.start(startTime);
+                    startTime += buffer.duration / source.playbackRate.value;
+                    await new Promise(resolve => setTimeout(resolve, buffer.duration / source.playbackRate.value * 1000)); // 간단한 딜레이 (await for sound to finish - 개선 필요)
+                }
+            }
+        }
+
+
+    </script>
+</body>
+</html>
