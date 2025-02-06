@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Javascript PyAnimalese Chatbot (Advanced)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { text-align: center; }
+        p { text-align: center; margin-bottom: 20px; }
+        .chat-container { display: flex; flex-direction: column; align-items: center; }
+        #chat-output { width: 80%; min-height: 200px; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; overflow-y: auto; text-align: left; background-color: #f9f9f9; }
+        .message-bubble { padding: 8px 12px; margin-bottom: 8px; border-radius: 15px; display: inline-block; clear: both; }
+        .user-message { background-color: #DCF8C6; align-self: flex-end; float: right; }
+        .chatbot-message { background-color: #E0E0E0; align-self: flex-start; float: left; }
+        .input-area { display: flex; width: 80%; margin-bottom: 20px; }
+        input[type="text"] { flex-grow: 1; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 12px 25px; font-size: 18px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Javascript PyAnimalese Chatbot (Advanced)</h1>
+    <p>Chat with the Animalese bot! Type your message and press Enter or Send.</p>
+
+    <div class="chat-container">
+        <div id="chat-output">
+            <div class="chatbot-message">Welcome! I'm the Animalese Chatbot. Talk to me!</div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Type your message here" onkeydown="handleEnter(event)">
+            <button onclick="sendInput()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const chatOutputDiv = document.getElementById('chat-output');
+        const userInputField = document.getElementById('userInput');
+        let animaleseSources = [];
+
+        const durationPerChar = 0.08; // Shorter duration for faster tempo
+        const volumeScaleFactor = 0.00003;
+        const basePitchFactor = 2.0;
+        const pitchRangeFactor = 0.6;
+        const tempoScaleFactor = 0.5; // For tempo variation
+        const detuneRangeFactor = 150; // For detune variation
+
+
+        function appendMessage(message, isUser = false, responseText = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            messageDiv.classList.add(isUser ? 'user-message' : 'chatbot-message');
+            if (responseText) {
+                messageDiv.innerHTML = `<strong>${isUser ? 'You:' : 'Animalese Bot:'}</strong> ${message} <br> <small style="color: gray;">(${responseText})</small>`;
+            } else {
+                messageDiv.innerHTML = `<strong>${isUser ? 'You:' : 'Animalese Bot:'}</strong> ${message}`;
+            }
+            chatOutputDiv.appendChild(messageDiv);
+            chatOutputDiv.scrollTop = chatOutputDiv.scrollHeight;
+        }
+
+
+        function handleEnter(event) {
+            if (event.key === 'Enter') {
+                sendInput();
+            }
+        }
+
+
+        async function sendInput() {
+            const inputText = userInputField.value.trim();
+            if (!inputText) return;
+
+            appendMessage(inputText, true);
+
+            const unicodeFeatures = analyzeUnicodeFeatures(inputText);
+            const response = generateChatbotResponse(inputText, unicodeFeatures); // Get chatbot response object
+
+            let responseText = null;
+            if (response.textResponse) {
+                appendMessage(response.textResponse, false); // Display text response
+                responseText = response.textResponse; // Store for message display
+            }
+
+            if (response.animaleseSound) {
+                const charList = inputText; // Or response.animaleseSoundChars if you want different sound chars
+                const audioBuffers = [];
+
+                for (let char of charList) {
+                    const codePoint = char.charCodeAt(0);
+                    const buffer = generateRawDataBuffer(codePoint, durationPerChar);
+                    audioBuffers.push(buffer);
+                }
+
+                const pitchFactor = basePitchFactor + (unicodeFeatures.averageCodePoint / 65535) * pitchRangeFactor + response.pitchAdjustment; // Apply chatbot pitch adjustment
+                const tempoFactor = 1.0 + (unicodeFeatures.unicodeRange / 65535) * tempoScaleFactor + response.tempoAdjustment; // Tempo based on Unicode Range
+                const detuneValue = (unicodeFeatures.unicodeVariance / 1000) * detuneRangeFactor + response.detuneAdjustment; // Detune based on Variance
+
+                await playAnimaleseAudio(audioBuffers, pitchFactor, tempoFactor, detuneValue);
+                appendMessage("(Sound Response)", false, responseText); // Indicate sound response, include text response if any
+            } else if (!response.textResponse) {
+                appendMessage("(No Sound or Text Response)", false); // Indicate no response
+            }
+
+            userInputField.value = '';
+        }
+
+
+        function analyzeUnicodeFeatures(text) {
+            let totalCodePoint = 0;
+            let minCodePoint = Infinity;
+            let maxCodePoint = -Infinity;
+            const codePoints = [];
+
+            for (let char of text) {
+                const codePoint = char.charCodeAt(0);
+                totalCodePoint += codePoint;
+                codePoints.push(codePoint);
+                minCodePoint = Math.min(minCodePoint, codePoint);
+                maxCodePoint = Math.max(maxCodePoint, codePoint);
+            }
+
+            const averageCodePoint = text.length > 0 ? totalCodePoint / text.length : 0;
+            const unicodeRange = maxCodePoint === -Infinity ? 0 : maxCodePoint - minCodePoint; // Handle empty text
+            const unicodeVariance = calculateVariance(codePoints, averageCodePoint);
+
+
+            return {
+                averageCodePoint: averageCodePoint,
+                unicodeRange: unicodeRange,
+                unicodeVariance: unicodeVariance
+            };
+        }
+
+        function calculateVariance(data, average) {
+            if (data.length <= 1) return 0; // Variance is 0 for single or no data point
+            let sumSquaredDiff = 0;
+            for (let value of data) {
+                sumSquaredDiff += Math.pow(value - average, 2);
+            }
+            return sumSquaredDiff / (data.length - 1); // Sample variance
+        }
+
+
+        function generateChatbotResponse(inputText, unicodeFeatures) {
+            const lowerInput = inputText.toLowerCase();
+            let textResponse = null;
+            let animaleseSound = true; // Default to sound response
+            let pitchAdjustment = 0;
+            let tempoAdjustment = 0;
+            let detuneAdjustment = 0;
+
+
+            if (lowerInput.includes("hello") || lowerInput.includes("hi") || lowerInput.includes("안녕")) {
+                textResponse = "Animalese greetings to you too!";
+                pitchAdjustment += 0.1; // Slightly higher pitch for greetings
+            } else if (lowerInput.includes("name") || lowerInput.includes("이름")) {
+                textResponse = "I am the Animalese Chatbot!";
+                tempoAdjustment -= 0.1; // Slightly slower tempo for name response
+            } else if (lowerInput.includes("thank you") || lowerInput.includes("고마워")) {
+                textResponse = "You're welcome!";
+                detuneAdjustment += 50; // Add a bit more detune for thanks
+            } else if (inputText.length > 30) {
+                textResponse = "That's a long message!";
+                tempoAdjustment -= 0.2; // Slower tempo for long messages
+                pitchAdjustment -= 0.1; // Lower pitch for long messages
+            } else if (inputText.length < 3) {
+                 textResponse = "Short and sweet!";
+                 pitchAdjustment += 0.2; // Higher pitch for short messages
+                 tempoAdjustment += 0.1; // Faster tempo for short messages
+            } else if (unicodeFeatures.averageCodePoint > 12000) { // Example: Korean Hangul range starts around 12000+
+                textResponse = "Korean input detected!"; // Detect Korean input (rough example)
+                pitchAdjustment += 0.05; // Slightly adjust pitch for Korean
+            } else if (/[0-9]/.test(inputText)) { // Check for numbers
+                textResponse = "Numbers!";
+                detuneAdjustment -= 30; // Less detune for numbers
+            }
+
+            return {
+                textResponse: textResponse,
+                animaleseSound: animaleseSound,
+                pitchAdjustment: pitchAdjustment,
+                tempoAdjustment: tempoAdjustment,
+                detuneAdjustment: detuneAdjustment
+            };
+        }
+
+
+        function generateRawDataBuffer(codePoint, duration) {
+            const sampleRate = audioContext.sampleRate;
+            const bufferSize = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            const scaledValue = (codePoint / 65535) * 2 - 1;
+            const normalizedValue = scaledValue * volumeScaleFactor;
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = normalizedValue;
+            }
+            return buffer;
+        }
+
+
+
+        async function playAnimaleseAudio(audioBuffers, pitchFactor, tempoFactor, detuneValue) {
+            let startTime = audioContext.currentTime;
+            let previousSource = null; // To chain using onended
+
+            for (const buffer of audioBuffers) {
+                if (buffer) {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = buffer;
+
+                    const pitchShift = 1.0 + (Math.random() - 0.5) * 0.15;
+                    source.playbackRate.value = pitchShift * pitchFactor * tempoFactor; // Apply tempo factor
+                    source.detune.value = detuneValue + (Math.random() - 0.5) * 50; // Add baseline detune + random
+
+                    animaleseSources.push(source);
+                    source.connect(audioContext.destination);
+
+                    if (previousSource) {
+                        previousSource.onended = () => { // Chain playback using onended
+                            source.start(0); // Start immediately when previous ends
+                        };
+                    } else {
+                        source.start(startTime); // Start first source at startTime
+                    }
+
+                    startTime += buffer.duration / source.playbackRate.value; // Update startTime (though chaining makes this less critical now)
+                    previousSource = source; // Update previous source for chaining
+                    await new Promise(resolve => { source.onended = resolve; }); // Wait for current source to finish (using Promise)
+                }
+            }
+        }
+
+
+    </script>
+</body>
+</html>
