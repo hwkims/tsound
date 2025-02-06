@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Javascript PyAnimalese (Code-Point to Frequency)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { text-align: center; }
+        p { text-align: center; margin-bottom: 20px; }
+        .input-container { text-align: center; margin-bottom: 20px; }
+        input[type="text"] { padding: 10px; font-size: 16px; width: 400px; }
+        button { padding: 12px 25px; font-size: 18px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
+        #message { text-align: center; margin-top: 20px; font-weight: bold; }
+        #audio-controls { text-align: center; margin-top: 20px; }
+        #audio-controls button { margin: 0 10px; padding: 8px 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>Javascript PyAnimalese (Code-Point to Frequency)</h1>
+    <p>Enter Korean or English text for synthesized Animalese-like sound (Code-Point Mapping).</p>
+
+    <div class="input-container">
+        <input type="text" id="inputText" placeholder="Enter text (Korean or English)">
+        <button onclick="generateAnimalese()">Generate Animalese Sound</button>
+    </div>
+
+    <div id="message"></div>
+    <div id="audio-controls" style="display:none;">
+        <button id="playButton">Play</button>
+        <button id="pauseButton">Pause</button>
+        <button id="stopButton">Stop</button>
+    </div>
+
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const messageDiv = document.getElementById('message');
+        const audioControlsDiv = document.getElementById('audio-controls');
+        let animaleseSources = [];
+
+        const minFrequency = 220;   // Minimum frequency for scaling
+        const maxFrequency = 880;   // Maximum frequency for scaling
+        const minCodePoint = 32;    // Minimum Unicode code point to consider (Space)
+        const maxCodePoint = 126;   // Maximum Unicode code point to consider (~) - Adjust as needed
+
+
+        function codePointToFrequency(codePoint) {
+            // Linear scaling of Unicode code point to frequency range
+            if (codePoint < minCodePoint) codePoint = minCodePoint;
+            if (codePoint > maxCodePoint) codePoint = maxCodePoint; // Clamp values
+
+            const normalizedCodePoint = (codePoint - minCodePoint) / (maxCodePoint - minCodePoint);
+            const frequency = minFrequency + normalizedCodePoint * (maxFrequency - minFrequency);
+            return frequency;
+        }
+
+
+        async function generateAnimalese() {
+            const inputText = document.getElementById('inputText').value;
+            if (!inputText.trim()) {
+                messageDiv.textContent = "Please enter text.";
+                return;
+            }
+            messageDiv.textContent = "Generating synthesized Animalese sound (Code-Point Mapping)...";
+            animaleseSources.forEach(source => source.stop());
+            animaleseSources = [];
+            audioControlsDiv.style.display = 'none';
+
+            const charList = inputText.trim(); // Process each character directly
+            const audioBuffers = [];
+
+            for (let char of charList) {
+                const codePoint = char.charCodeAt(0);
+                const frequency = codePointToFrequency(codePoint);
+                const buffer = generateSineWaveBuffer(frequency, 0.15); // Short duration
+                audioBuffers.push(buffer);
+            }
+
+
+            if (audioBuffers.length > 0) {
+                playAnimaleseAudio(audioBuffers);
+                messageDiv.textContent = "Playing synthesized Animalese sound.";
+                audioControlsDiv.style.display = 'block';
+            } else {
+                messageDiv.textContent = "No sound to play.";
+                audioControlsDiv.style.display = 'none';
+            }
+        }
+
+
+        function generateSineWaveBuffer(frequency, duration) {
+            const sampleRate = audioContext.sampleRate;
+            const bufferSize = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                const time = i / sampleRate;
+                data[i] = Math.sin(2 * Math.PI * frequency * time);
+            }
+            return buffer;
+        }
+
+
+        function playAnimaleseAudio(audioBuffers) {
+            let startTime = audioContext.currentTime;
+            audioBuffers.forEach(buffer => {
+                if (buffer) {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = buffer;
+
+                    const pitchShift = 1.0 + (Math.random() - 0.5) * 0.15;
+                    source.playbackRate.value = pitchShift * 2.0;
+                    source.detune.value = (Math.random() - 0.5) * 100;
+
+                    animaleseSources.push(source);
+                    source.connect(audioContext.destination);
+                    source.start(startTime);
+                    startTime += buffer.duration / source.playbackRate.value;
+                }
+            });
+        }
+
+
+        // --- Audio Controls (same as before) ---
+        document.getElementById('playButton').addEventListener('click', () => {
+            if (animaleseSources.length > 0) {
+                playAnimaleseAudio(audioBuffers);
+                messageDiv.textContent = "Playing Animalese sound.";
+            }
+        });
+
+        document.getElementById('pauseButton').addEventListener('click', () => {
+            animaleseSources.forEach(source => audioContext.suspend());
+            messageDiv.textContent = "Paused.";
+        });
+
+        document.getElementById('stopButton').addEventListener('click', () => {
+            animaleseSources.forEach(source => source.stop());
+            animaleseSources = [];
+            audioContext.resume();
+            messageDiv.textContent = "Stopped.";
+            audioControlsDiv.style.display = 'none';
+        });
+
+
+    </script>
+</body>
+</html>
