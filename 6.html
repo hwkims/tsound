@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text-to-Animal Sound</title>
+    <style>
+        /* (스타일은 이전과 동일하게 유지하거나 취향에 맞게 수정) */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 350px;
+        }
+        h1 {
+          font-size: 2.5em;
+          margin-bottom: 0.5em;
+        }
+        input[type="text"] {
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            width: calc(100% - 24px);
+        }
+        button {
+            padding: 12px 24px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 1.1em;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap; /* Add this to wrap buttons on smaller screens */
+        }
+
+        /* Add specific styles for each animal button if you want */
+        #dogButton { background-color: #3498db; }
+        #dogButton:hover { background-color: #2980b9; }
+
+        #catButton { background-color: #e67e22; }
+        #catButton:hover { background-color: #d35400; }
+
+        #birdButton { background-color: #2ecc71; }
+        #birdButton:hover { background-color: #27ae60; }
+
+        #frogButton { background-color: #9b59b6; }
+        #frogButton:hover { background-color: #8e44ad; }
+
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Text-to-Animal Sound</h1>
+        <input type="text" id="inputText" placeholder="Enter text">
+        <div id="buttons">
+            <button id="dogButton">🐶 Dog</button>
+            <button id="catButton">🐱 Cat</button>
+            <button id="birdButton">🐦 Bird</button>
+            <button id="frogButton">🐸 Frog</button>
+
+        </div>
+          <button id="generateButton">Generate from Text</button>
+    </div>
+
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function generateSound(text, animal) {
+            let baseFrequency = 0;
+            for (let i = 0; i < text.length; i++) {
+                baseFrequency += text.charCodeAt(i); // 유니코드 값 누적
+            }
+            baseFrequency = baseFrequency % 500 + 100;  // 100~600Hz 범위로 조정
+
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            // 동물별 소리 특성 조정
+            let type = 'sine';
+            let duration = 1;
+            let attack = 0.1;
+            let decay = 0.2;
+            let sustain = 0.5;
+            let release = 0.2;
+
+
+            switch (animal) {
+                case 'dog':
+                    type = 'triangle';
+                    duration = 0.4;
+                    attack = 0.03;
+                    decay = 0.1;
+                    baseFrequency *= 1.2; // 개 짖는 소리는 약간 더 높게
+                    break;
+                case 'cat':
+                    type = 'sine';
+                    duration = 0.8;
+                    attack = 0.15;
+                    decay = 0.3;
+                    baseFrequency *= 2;  // 고양이는 더 높게
+                    break;
+                case 'bird':
+                    type = 'square'; // 새소리에 더 적합한 파형
+                    duration = 0.3;     // 짧은 소리
+                    attack = 0.01;      // 매우 빠른 어택
+                    decay = 0.1;
+                    sustain = 0.1
+                    release = 0.1;
+                    baseFrequency *= 3;   //새는 더 높게
+                    break;
+                case 'frog':
+                    type = 'sawtooth';
+                    duration = 0.5;
+                    attack = 0.05;
+                    decay = 0.1;
+                    sustain = 0.7;
+                    release = 0.3;
+                    baseFrequency *= 0.7; // 개구리는 더 낮게
+                    break;
+            }
+            oscillator.type = type;
+            oscillator.frequency.value = baseFrequency;
+
+
+
+            const now = audioContext.currentTime;
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(1, now + attack);
+            gainNode.gain.linearRampToValueAtTime(sustain, now + attack + decay);
+            gainNode.gain.setValueAtTime(sustain, now + duration - release);
+            gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(now + duration);
+        }
+
+
+
+        document.getElementById('dogButton').addEventListener('click', () => {
+            generateSound(document.getElementById('inputText').value || "dog", "dog");
+        });
+        document.getElementById('catButton').addEventListener('click', () => {
+             generateSound(document.getElementById('inputText').value || "cat", "cat");
+
+        });
+        document.getElementById('birdButton').addEventListener('click', () => {
+            generateSound(document.getElementById('inputText').value || "bird", "bird");
+
+        });
+        document.getElementById('frogButton').addEventListener('click', () => {
+             generateSound(document.getElementById('inputText').value || "frog", "frog");
+
+        });
+
+         document.getElementById('generateButton').addEventListener('click', () => {
+           const text = document.getElementById('inputText').value;
+            //간단한 텍스트 기반 동물 추측.  더 정교하게 하려면 자연어 처리 필요
+            let animal = 'dog'; // 기본값
+            if (text.toLowerCase().includes('meow') || text.toLowerCase().includes('cat')) {
+                animal = 'cat';
+            } else if (text.toLowerCase().includes('woof') || text.toLowerCase().includes('dog') || text.toLowerCase().includes('bark')) {
+                animal = 'dog';
+            } else if (text.toLowerCase().includes('chirp') || text.toLowerCase().includes('bird')) {
+                animal = 'bird';
+            } else if (text.toLowerCase().includes('ribbit') || text.toLowerCase().includes('frog')) {
+                animal = 'frog';
+            }
+           generateSound(text, animal);
+        });
+
+    </script>
+</body>
+</html>
