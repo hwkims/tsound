@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐶🐱 Animal Sound Generator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #container {
+            background-color: #fff;
+            padding: 30px; /* Increased padding */
+            border-radius: 12px; /* Increased border-radius */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Stronger shadow */
+            text-align: center;
+            width: 350px; /* Wider container */
+        }
+        h1 {
+          font-size: 2.5em; /* Larger heading */
+          margin-bottom: 0.5em;
+        }
+
+        input[type="text"] {
+            padding: 12px; /* Larger input */
+            margin-bottom: 15px; /* More margin */
+            border: 2px solid #ccc; /* Thicker border */
+            border-radius: 6px;
+            width: calc(100% - 24px); /* Full width minus padding */
+        }
+        button {
+            padding: 12px 24px; /* Larger button */
+            margin: 5px; /* Margin around buttons */
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 1.1em; /* Slightly larger font */
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #buttons {
+            display: flex;
+            justify-content: center;
+        }
+
+        #dogButton { background-color: #3498db; } /* Blue */
+        #dogButton:hover { background-color: #2980b9; }
+
+        #catButton { background-color: #e67e22; } /* Orange */
+        #catButton:hover { background-color: #d35400; }
+
+        #catButton, #dogButton {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>🐶🐱 Animal Sound Generator</h1>
+        <input type="text" id="inputText" placeholder="Enter text (optional)">
+        <div id="buttons">
+            <button id="dogButton">🐶 Bark</button>
+            <button id="catButton">🐱 Meow</button>
+        </div>
+    </div>
+
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function bark() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.frequency.value = 200 + Math.random() * 100; // Wider frequency range
+            oscillator.type = 'triangle'; //Different wave
+
+            const now = audioContext.currentTime;
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(1, now + 0.03); // Faster attack
+            gainNode.gain.linearRampToValueAtTime(0.6, now + 0.1); // Faster decay
+            gainNode.gain.setValueAtTime(0.6, now + 0.2);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.3);  // Faster release
+
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(now + 0.4); //Shorter bark
+        }
+
+        function meow() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter(); // Add a filter
+
+            // Higher frequency, more randomness
+            oscillator.frequency.value = 400 + Math.random() * 400;
+            oscillator.type = 'sine'; // Sine wave for a smoother sound
+
+            // Envelope
+            const now = audioContext.currentTime;
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(1, now + 0.1);  // Slower attack
+            gainNode.gain.linearRampToValueAtTime(0.8, now + 0.3); // Sustain
+            gainNode.gain.setValueAtTime(0.8, now + 0.6);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.9); // Longer release
+
+            // Filter setup (lowpass for a "muffled" meow)
+            filter.type = 'lowpass';
+            filter.frequency.value = 800; // Adjust as needed
+            filter.Q.value = 10; // Resonance - adjust for effect
+
+            // Connections
+            oscillator.connect(filter); // Connect oscillator to filter
+            filter.connect(gainNode);  // Connect filter to gain
+            gainNode.connect(audioContext.destination);
+
+
+            oscillator.start();
+            oscillator.stop(now + 1); // Longer meow
+        }
+
+
+
+        document.getElementById('dogButton').addEventListener('click', bark);
+        document.getElementById('catButton').addEventListener('click', meow);
+
+        // Optional: Use input text to modify sound (example)
+        document.getElementById('generateButton')?.addEventListener('click', () => { // Optional chaining in case you remove the button
+           const text = document.getElementById('inputText').value;
+           if (text.toLowerCase().includes("angry")) {
+              //Modify bark or meow to be "angrier" (e.g., lower frequency, louder, faster)
+           }
+
+        });
+    </script>
+</body>
+</html>
