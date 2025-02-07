@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animal Sound Generator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        input[type="text"] {
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 250px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Animal Sound Generator</h1>
+        <input type="text" id="inputText" placeholder="Enter text (not used for sound)">
+        <button id="generateButton">Generate</button>
+    </div>
+
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function bark() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            // 기본 주파수 (약간의 무작위성 추가)
+            oscillator.frequency.value = 200 + Math.random() * 50;
+
+            // 파형 (톱니파)
+            oscillator.type = 'sawtooth';
+
+            // 포락선 (Attack, Decay, Sustain, Release)
+            const now = audioContext.currentTime;
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(1, now + 0.05); // Attack
+            gainNode.gain.linearRampToValueAtTime(0.7, now + 0.15); // Decay
+            gainNode.gain.setValueAtTime(0.7, now + 0.3); // Sustain
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.5); // Release
+
+            // 연결
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // 재생
+            oscillator.start();
+            oscillator.stop(now + 0.5);
+        }
+
+        document.getElementById('generateButton').addEventListener('click', () => {
+            // 텍스트 입력은 현재 코드에서는 사용되지 않지만,
+            // 향후 텍스트 기반으로 소리를 조작하는 기능을 추가할 수 있습니다.
+            // const text = document.getElementById('inputText').value; 
+            bark();
+        });
+    </script>
+</body>
+</html>
